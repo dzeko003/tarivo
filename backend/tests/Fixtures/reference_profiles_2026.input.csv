@@ -1,0 +1,11 @@
+name,category,fiscal_power,usage,birth_date,license_date,zone,bonus_malus,effective_date
+conducteur_neutre,promenade_affaires,7,personnel,1985-06-15,2005-09-01,autres_villes,1.00,2026-07-01
+awa_jeune_douala,promenade_affaires,7,personnel,2001-03-10,2023-05-20,douala,1.00,2026-01-01
+pile_18_ans_permis_du_jour,promenade_affaires,5,personnel,2008-03-01,2026-03-01,yaounde,1.00,2026-03-01
+veille_21_ans,promenade_affaires,5,personnel,2005-03-02,2024-01-10,douala,1.00,2026-03-01
+taxi_douala,transport_public_voyageurs,8,professionnel,1978-11-02,2000-01-15,douala,1.00,2026-07-01
+senior_76_ans_bonus,promenade_affaires,6,personnel,1950-05-20,1972-05-05,zone_rurale,0.85,2026-07-01
+senior_ne_29_fevrier_75_ans,promenade_affaires,6,personnel,1952-02-29,1975-05-05,autres_villes,1.00,2027-03-01
+moto_jeune,deux_roues,4,personnel,2005-08-01,2024-08-01,autres_villes,1.00,2026-08-01
+camion_malus,transport_public_marchandises,16,professionnel,1982-12-31,2004-03-03,zone_rurale,1.20,2026-07-01
+grosse_cylindree_malus,promenade_affaires,24,personnel,1980-01-01,2000-01-01,yaounde,2.10,2026-12-31

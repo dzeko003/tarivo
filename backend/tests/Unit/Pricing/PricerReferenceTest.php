@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use App\Pricing\Enums\LineType;
-use App\Pricing\Enums\Usage;
-use App\Pricing\Enums\VehicleCategory;
 use App\Pricing\Pricer;
 use Tests\Fixtures\QuoteInputBuilder;
 use Tests\Fixtures\SahelTariff2025;
@@ -13,35 +11,10 @@ use Tests\Fixtures\SahelTariff2025;
  * Profils de référence : primes attendues calculées INDÉPENDAMMENT du moteur
  * (tests/Fixtures/reference_oracle_2025.py). Si un montant change, ce test casse.
  */
-dataset('reference_profiles_2025', function () {
-    $file = new SplFileObject(__DIR__.'/../../Fixtures/reference_profiles_2025.csv');
-    $file->setFlags(SplFileObject::READ_CSV | SplFileObject::SKIP_EMPTY | SplFileObject::READ_AHEAD | SplFileObject::DROP_NEW_LINE);
-
-    $header = null;
-    foreach ($file as $row) {
-        if ($header === null) {
-            $header = $row;
-
-            continue;
-        }
-        $profile = array_combine($header, $row);
-        yield $profile['name'] => [$profile];
-    }
-});
+dataset('reference_profiles_2025', fn () => referenceProfiles('reference_profiles_2025.csv'));
 
 it('calcule la prime attendue pour chaque profil de référence', function (array $profile) {
-    $input = QuoteInputBuilder::make([
-        'category' => VehicleCategory::from($profile['category']),
-        'fiscal_power' => (int) $profile['fiscal_power'],
-        'usage' => Usage::from($profile['usage']),
-        'birth_date' => $profile['birth_date'],
-        'license_date' => $profile['license_date'],
-        'zone' => $profile['zone'],
-        'bonus_malus' => $profile['bonus_malus'],
-        'effective_date' => $profile['effective_date'],
-    ]);
-
-    $result = (new Pricer)->price($input, SahelTariff2025::grid());
+    $result = (new Pricer)->price(quoteInputFromProfile($profile), SahelTariff2025::grid());
 
     expect($result->netPremium)->toBe((int) $profile['expected_net_premium'])
         ->and($result->total)->toBe((int) $profile['expected_total']);
