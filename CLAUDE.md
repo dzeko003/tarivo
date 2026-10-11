@@ -188,13 +188,37 @@ Le pipeline utilise `Illuminate\Pipeline\Pipeline` dans la couche applicative, o
 
 ### Schéma de données (grandes lignes)
 
-- `tariff_versions` : id, country, label, valid_from, valid_to, status (draft|published|archived), published_at
+- `tariff_versions` : id, code (= `TariffGrid::$version`), country, currency, label, valid_from, valid_to,
+  status (draft|published|archived), published_at, policy_fee, bonus_malus_min/max, minimum_driver_age,
+  minimum_license_age
 - `base_premiums` : tariff_version_id, vehicle_category, cv_min, cv_max, amount
-- `coefficients` : tariff_version_id, factor (USAGE|AGE|LICENSE|ZONE|BONUS_MALUS), key ou min/max, value
-- `optional_covers` : tariff_version_id, code, mode de calcul, valeur, franchise
-- `taxes` : tariff_version_id, code, label, rate ou fixed_amount, assiette
+- `coefficients` : tariff_version_id, factor (usage|zone|age|license), `key` (usage, zone) ou
+  `band_min`/`band_max` (âge, permis), value, label. Le bonus-malus est une saisie : seules ses bornes
+  sont au barème, dans `tariff_versions`.
+- `optional_covers` : tariff_version_id, code, mode de calcul, valeur, franchise (étape 6)
+- `taxes` : tariff_version_id, position (ordre d'application), code, label, rate + base, ou fixed_amount
 - `quotes` : id, reference, effective_date, duration_months, tariff_version_id, input (jsonb),
   breakdown (jsonb), total_ttc, created_at, user_id (nullable)
+
+Choix d'implémentation (PostgreSQL uniquement) :
+- coefficients, taux et bornes de bonus-malus en `numeric` **sans échelle imposée** (+ `CHECK scale() <= 4`) :
+  « 1.15 » se relit « 1.15 », d'où un détail de calcul identique au fixture. Cast Eloquent `AsBigDecimal`
+  (refuse les `float`).
+- Règles du barème aussi garanties par la base : `CHECK` et `EXCLUDE USING gist` (extension `btree_gist`)
+  contre les tranches qui se chevauchent et deux versions **publiées** d'un même pays sur la même période.
+- Seule passerelle Eloquent → moteur : `TariffVersion::toGrid()`. Barèmes seedés depuis
+  `database/seeders/tariffs/*.php` (`TariffSeeder`).
+- Cycle de vie (`TariffVersion`) : `publish()` (brouillon → publiée ; refuse un barème incomplet via
+  `App\Pricing\TariffGridValidator` et une période qui chevauche une version publiée), `archive()`
+  (publiée → archivée), `closeOn(date)` (ferme une période ouverte pour la version suivante, sans laisser un
+  devis hors période). Ce sont les **seuls** changements permis après publication.
+- Immutabilité à deux niveaux : observers (`TariffVersionObserver`, `TariffGridRowObserver`, exception
+  `TariffVersionLocked`) et triggers PostgreSQL (message `tariff_version_locked: …`) pour ce qui contourne
+  Eloquent (`->update()` en masse, `DB::table()`).
+- Sélection : `TariffVersion::applicableOn($country, $effectiveDate)` (publiée uniquement), sinon
+  `NoApplicableTariffVersion`.
+- Le barème 2025 est volontairement saisi deux fois (seeder et `tests/Fixtures/SahelTariff2025.php`) : un
+  test de parité vérifie que la base le restitue à l'identique.
 
 ## Stratégie de tests
 
@@ -209,8 +233,12 @@ Le pipeline utilise `Illuminate\Pipeline\Pipeline` dans la couche applicative, o
 ## Commandes
 
 ```bash
+# base de données (depuis la racine) : PostgreSQL sur le port 5435, bases tarivo et tarivo_test
+docker compose up -d --wait
+
 # backend (depuis backend/)
 composer install
+php artisan migrate:fresh --seed          # schéma + barèmes 2025 et 2026
 ./vendor/bin/pest                         # tous les tests
 ./vendor/bin/pest tests/Unit/Pricing      # tests du moteur uniquement
 ./vendor/bin/pint                         # formatage du code
@@ -218,6 +246,7 @@ composer install
 
 # profils de référence (depuis backend/tests/Fixtures/) : régénérer les primes attendues
 python3 reference_oracle_2025.py reference_profiles_2025.input.csv > reference_profiles_2025.csv
+python3 reference_oracle_2026.py reference_profiles_2026.input.csv > reference_profiles_2026.csv
 
 # frontend
 # installation :      npm install
@@ -239,8 +268,8 @@ python3 reference_oracle_2025.py reference_profiles_2025.input.csv > reference_p
 ## Feuille de route
 
 1. [x] Moteur pur (`app/Pricing`) et tests unitaires et de référence sur un barème fictif
-2. [ ] Migrations, modèles et seeders (barème 2025 + barème 2026)
-3. [ ] Sélection de la version de tarif par date d'effet et immutabilité des versions publiées
+2. [x] Migrations, modèles et seeders (barème 2025 + barème 2026)
+3. [x] Sélection de la version de tarif par date d'effet et immutabilité des versions publiées
 4. [ ] API : calcul, enregistrement, historique, recalcul ; doc OpenAPI
 5. [ ] Frontend React : initialisation, types générés, formulaire de devis en étapes, historique
 6. [ ] Garanties optionnelles, prorata de durée, PDF

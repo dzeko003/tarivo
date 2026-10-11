@@ -1,0 +1,21 @@
+# Infra de développement. Pour l'instant, seulement PostgreSQL (l'API et le frontend viendront à l'étape 9).
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tarivo
+      POSTGRES_PASSWORD: tarivo
+      POSTGRES_DB: tarivo
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tarivo -d tarivo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
