@@ -128,3 +128,43 @@ function seededTariff(string $name, bool $asDraft = false): TariffVersion
 {
     return (new TariffSeeder)->seedTariff($name, $asDraft)->fresh();
 }
+
+/**
+ * Corps de requête de devis pour l'API : profil neutre (tous les coefficients à 1,00 en 2025)
+ * dont on ne change que ce qui intéresse le test.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function quotePayload(array $overrides = []): array
+{
+    return [
+        'vehicle_category' => 'promenade_affaires',
+        'fiscal_power' => 7,
+        'usage' => 'personnel',
+        'driver_birth_date' => '1985-06-15',
+        'license_date' => '2005-09-01',
+        'zone' => 'autres_villes',
+        'bonus_malus' => '1.00',
+        'effective_date' => '2025-07-01',
+        ...$overrides,
+    ];
+}
+
+/**
+ * @param  array<string, string>  $profile  une ligne de referenceProfiles()
+ * @return array<string, mixed>
+ */
+function quotePayloadFromProfile(array $profile): array
+{
+    return quotePayload([
+        'vehicle_category' => $profile['category'],
+        'fiscal_power' => (int) $profile['fiscal_power'],
+        'usage' => $profile['usage'],
+        'driver_birth_date' => $profile['birth_date'],
+        'license_date' => $profile['license_date'],
+        'zone' => $profile['zone'],
+        'bonus_malus' => $profile['bonus_malus'],
+        'effective_date' => $profile['effective_date'],
+    ]);
+}

@@ -154,7 +154,7 @@ frontend/
     routes/                  # Pages et routing
 ```
 
-### Endpoints de l'API (prévus)
+### Endpoints de l'API
 
 | Méthode | Route | Rôle |
 |---|---|---|
@@ -171,6 +171,25 @@ frontend/
 
 Format d'erreur : réponse 422 standard de Laravel (`message` + `errors` par champ), que le formulaire React
 affiche sous chaque champ.
+
+### API (état actuel, étape 4)
+
+- Faits : `quotes/calculate`, `quotes` (index, store, show), `quotes/{id}/recompute`, `reference-data`.
+  Contrôleurs `Api\QuoteController` et `Api\ReferenceDataController` ; doc OpenAPI (Scramble) sur `/docs/api`.
+  Pas encore d'authentification (étape 8) : tout est ouvert, `user_id` reste vide.
+- Chemin d'un calcul : `QuoteRequest::quoteInput()` (saisie normalisée) → `TariffVersion::applicableOn()` →
+  `toGrid()` → `Pricer::price()` → `PricingResultResource`.
+- Validation en deux temps, même format 422 : la forme dans `QuoteRequest`, puis les règles du barème par le
+  moteur. `InvalidQuoteInput` et `NoApplicableTariffVersion` (sur `effective_date`) sont converties en
+  `ValidationException` dans `bootstrap/app.php`. Messages en français : `lang/fr/validation.php`.
+- `country` facultatif (`TariffVersion::DEFAULT_COUNTRY` = CM) ; devise tirée de la version de tarif.
+- `bonus_malus` et tous les coefficients/sous-totaux circulent en **chaînes décimales** (un nombre JSON est
+  refusé pour `bonus_malus`) ; les montants en entiers.
+- Durée : `Quote::AVAILABLE_DURATIONS` = [12] tant que le prorata (étape 6) n'existe pas.
+- Devis enregistré : `input` = saisie normalisée, `breakdown` = `PricingResultResource::payload()` (la réponse
+  de calcul complète), référence `DEV-<année>-<id sur 6 chiffres>` attribuée à la création (`Quote::booted()`).
+- Recalcul : avec la version **du devis** (même archivée), sans jamais modifier le devis ; `identical`
+  compare détail et total (clés triées, car jsonb ne garde pas l'ordre) et un écart est journalisé.
 
 Le pipeline utilise `Illuminate\Pipeline\Pipeline` dans la couche applicative, ou une simple boucle sur les
 étapes dans `Pricer` pour rester sans dépendance Laravel.
@@ -242,7 +261,8 @@ php artisan migrate:fresh --seed          # schéma + barèmes 2025 et 2026
 ./vendor/bin/pest                         # tous les tests
 ./vendor/bin/pest tests/Unit/Pricing      # tests du moteur uniquement
 ./vendor/bin/pint                         # formatage du code
-# lancer l'API : à compléter à l'étape 4
+php artisan serve                         # API sur http://localhost:8000/api, doc sur /docs/api
+php artisan scramble:export               # exporter l'OpenAPI dans backend/api.json
 
 # profils de référence (depuis backend/tests/Fixtures/) : régénérer les primes attendues
 python3 reference_oracle_2025.py reference_profiles_2025.input.csv > reference_profiles_2025.csv
@@ -270,7 +290,7 @@ python3 reference_oracle_2026.py reference_profiles_2026.input.csv > reference_p
 1. [x] Moteur pur (`app/Pricing`) et tests unitaires et de référence sur un barème fictif
 2. [x] Migrations, modèles et seeders (barème 2025 + barème 2026)
 3. [x] Sélection de la version de tarif par date d'effet et immutabilité des versions publiées
-4. [ ] API : calcul, enregistrement, historique, recalcul ; doc OpenAPI
+4. [x] API : calcul, enregistrement, historique, recalcul ; doc OpenAPI
 5. [ ] Frontend React : initialisation, types générés, formulaire de devis en étapes, historique
 6. [ ] Garanties optionnelles, prorata de durée, PDF
 7. [ ] Back-office React : versions, import Excel, comparaison entre deux versions

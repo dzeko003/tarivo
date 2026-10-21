@@ -58,6 +58,9 @@ class TariffVersion extends Model
     /** @use HasFactory<TariffVersionFactory> */
     use HasFactory;
 
+    /** Pays retenu quand une requête n'en précise pas (Sahel Assurances opère au Cameroun). */
+    public const DEFAULT_COUNTRY = 'CM';
+
     /**
      * @return array<string, string>
      */
